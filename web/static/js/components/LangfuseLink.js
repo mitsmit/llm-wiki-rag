@@ -1,5 +1,6 @@
 import { html, React } from "../html.js";
 import { getConfig } from "../api.js";
+import { IconBarChart } from "../icons.js";
 
 const { useEffect, useState } = React;
 
@@ -16,7 +17,7 @@ export function LangfuseLink() {
 
   return html`
     <a class="btn btn-secondary" href=${url} target="_blank" rel="noopener noreferrer">
-      📊 Langfuse Traces
+      <${IconBarChart} size=${16} /> Langfuse Traces
     </a>
   `;
 }

@@ -2,6 +2,7 @@ import { html, React } from "../html.js";
 import { getSessionId, saveAnalysis, streamQuery } from "../api.js";
 import { renderMarkdown } from "../markdown.js";
 import { LangfuseLink } from "./LangfuseLink.js";
+import { IconBookOpen, IconFlaskConical, IconGitCompare, IconPaperclip, IconSave } from "../icons.js";
 
 const { useState } = React;
 
@@ -60,7 +61,7 @@ export function ComparePanel() {
     <div class="compare-panel">
       <div class="compare-header">
         <div>
-          <h1>🔍↔🧪 Compare</h1>
+          <h1 class="icon-heading"><${IconGitCompare} size=${22} /> Knowledge Base</h1>
           <p class="subtitle">
             Ask one question, get two answers side by side: a full-wiki-context answer
             and a hybrid-RAG answer with retrieved excerpts.
@@ -81,7 +82,7 @@ export function ComparePanel() {
 
       <div class="compare-panes">
         <section class="pane">
-          <h2>🔍 Wiki</h2>
+          <h2 class="icon-heading"><${IconBookOpen} size=${18} /> Wiki</h2>
           ${errors.wiki && html`<div class="error">${errors.wiki}</div>`}
           <div class="answer" dangerouslySetInnerHTML=${{ __html: renderMarkdown(wikiAnswer) }}></div>
           ${wikiAnswer && !loading && html`
@@ -92,18 +93,18 @@ export function ComparePanel() {
                 value=${saveSlug}
                 onInput=${(e) => setSaveSlug(e.target.value)}
               />
-              <button class="btn btn-secondary" onClick=${onSave}>💾 Save</button>
+              <button class="btn btn-secondary" onClick=${onSave}><${IconSave} size=${16} /> Save</button>
               ${saveStatus && html`<span class="save-status">${saveStatus}</span>`}
             </div>
           `}
         </section>
 
         <section class="pane">
-          <h2>🧪 RAG</h2>
+          <h2 class="icon-heading"><${IconFlaskConical} size=${18} /> RAG</h2>
           ${errors.rag && html`<div class="error">${errors.rag}</div>`}
           ${excerpts.length > 0 && html`
             <details class="excerpts">
-              <summary>📎 ${excerpts.length} retrieved excerpts</summary>
+              <summary><${IconPaperclip} size=${14} /> ${excerpts.length} retrieved excerpts</summary>
               <ul>
                 ${excerpts.map((c, i) => html`
                   <li key=${i}>

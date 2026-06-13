@@ -5,7 +5,7 @@ from datetime import date
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from ..wiki_data import VAULT_ROOT, WIKI_DIR
+from ..wiki_data import VAULT_ROOT, WIKI_DIR, append_to_index
 
 router = APIRouter()
 
@@ -49,18 +49,6 @@ updated: {today}
     with open(log_path, "a") as f:
         f.write(entry)
 
-    _append_to_index(f"- [{req.question[:60]}](wiki/analyses/{req.slug}.md) — query filed {today}", "## Analyses")
+    append_to_index(f"- [{req.question[:60]}](wiki/analyses/{req.slug}.md) — query filed {today}", "## Analyses")
 
     return {"status": "ok", "path": f"wiki/analyses/{req.slug}.md"}
-
-
-def _append_to_index(line: str, section: str) -> None:
-    index_path = VAULT_ROOT / "index.md"
-    content = index_path.read_text(encoding="utf-8")
-    if line in content:
-        return
-    if section in content:
-        content = content.replace(section, section + "\n" + line)
-    else:
-        content += f"\n{section}\n{line}\n"
-    index_path.write_text(content, encoding="utf-8")

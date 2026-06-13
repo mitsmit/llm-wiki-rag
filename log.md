@@ -228,3 +228,9 @@ Parse last 10 entries: `grep "^## \[" log.md | tail -10`
   - Updated: `wiki/overview.md` (tabular ML thread added; clinical AI thread connection noted)
   - Updated: `index.md`
 - **Notes:** TabPFN establishes ICL for tabular classification via Prior-Data Fitted Networks; competitive with AutoML at 5700× speedup, scope ≤1K samples. TabICL extends to 500K samples via two-stage Set Transformer + Transformer architecture; outperforms CatBoost on large datasets at ICML 2025. Both are off-theme relative to core LLM/agentic focus but directly relevant to clinical AI thread (EHR tabular prediction). New concept page covers the full TabPFN→TabICL progression and ICL generalization beyond NLP.
+
+## [2026-06-13] brainstorm | agi_discourse
+
+- **Operation:** brainstorm
+- **Pages touched:** brainstorming_output/agi_discourse.md
+- **Notes:** Brainstorm: "can an Ai agent understand and reason?" — experts: Cognitive Scientist, AI Ethics Expert, Computer Scientist

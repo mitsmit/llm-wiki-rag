@@ -1,6 +1,7 @@
 import { html, React } from "../html.js";
 import { getLog } from "../api.js";
 import { renderMarkdown } from "../markdown.js";
+import { IconClipboardList } from "../icons.js";
 
 const { useEffect, useState } = React;
 
@@ -13,7 +14,7 @@ export function LogView() {
 
   return html`
     <div class="log-view">
-      <h1>📋 Operation Log</h1>
+      <h1 class="icon-heading"><${IconClipboardList} size=${22} /> Operation Log</h1>
       ${content === null && html`<p>Loading…</p>`}
       ${content !== null && html`
         <div class="markdown-body" dangerouslySetInnerHTML=${{ __html: renderMarkdown(content) }}></div>

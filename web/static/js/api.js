@@ -28,6 +28,16 @@ export async function getLog() {
   return res.json();
 }
 
+export async function getActivity(limit = 5) {
+  const res = await fetch(`/api/wiki/activity?limit=${limit}`);
+  return res.json();
+}
+
+export async function getInbox() {
+  const res = await fetch("/api/inbox");
+  return res.json();
+}
+
 export async function reindex() {
   const res = await fetch("/api/reindex", { method: "POST" });
   return res.json();
@@ -57,6 +67,24 @@ export async function selectResearchItems(items, query) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items, query }),
+  });
+  return res.json();
+}
+
+export async function startBrainstorm(idea, sessionId) {
+  const res = await fetch("/api/brainstorm/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idea, session_id: sessionId }),
+  });
+  return res.json();
+}
+
+export async function saveBrainstorm(payload) {
+  const res = await fetch("/api/brainstorm/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
   return res.json();
 }

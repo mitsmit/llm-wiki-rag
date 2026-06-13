@@ -1,6 +1,7 @@
 import { html, React } from "../html.js";
 import { getResearchHistory, getResearchResult, selectResearchItems, streamQuery } from "../api.js";
 import { renderMarkdown } from "../markdown.js";
+import { IconCompass, IconDownload, IconHistory, IconSearch, IconX } from "../icons.js";
 
 const { useEffect, useState } = React;
 
@@ -107,7 +108,7 @@ export function ResearchView() {
   return html`
     <div class="research-view">
       <div class="research-header">
-        <h1>🔭 Discover</h1>
+        <h1 class="icon-heading"><${IconCompass} size=${22} /> Discover</h1>
         <p class="subtitle">
           Enter a topic. The agent expands your query, searches arXiv + web (skipping
           anything already in the wiki or shown before), and ranks the best reads.
@@ -127,12 +128,14 @@ export function ResearchView() {
           <input type="checkbox" checked=${save} onChange=${(e) => setSave(e.target.checked)} disabled=${loading} />
           Save
         </label>
-        <button class="btn" type="submit" disabled=${loading}>${loading ? "Researching…" : "🔍 Research"}</button>
+        <button class="btn" type="submit" disabled=${loading}>
+          ${loading ? "Researching…" : html`<${IconSearch} size=${16} /> Research`}
+        </button>
       </form>
 
       ${history && history.length > 0 && html`
         <details class="research-history">
-          <summary>📄 Past sessions (${history.length})</summary>
+          <summary><${IconHistory} size=${14} /> Past sessions (${history.length})</summary>
           <ul>
             ${history.map((item) => html`
               <li key=${item.name}>
@@ -149,10 +152,10 @@ export function ResearchView() {
 
       ${hasResult && html`
         <div class="research-result">
-          ${activeName && html`<p class="page-meta">📄 results/${activeName}</p>`}
+          ${activeName && html`<p class="page-meta"><${IconHistory} size=${14} /> results/${activeName}</p>`}
           <div class="answer" dangerouslySetInnerHTML=${{ __html: renderMarkdown(answer) }}></div>
           <div class="research-actions">
-            <button class="btn btn-secondary" onClick=${onClear}>✕ Clear</button>
+            <button class="btn btn-secondary" onClick=${onClear}><${IconX} size=${16} /> Clear</button>
           </div>
         </div>
       `}
@@ -173,7 +176,7 @@ export function ResearchView() {
             </label>
           `)}
           <button class="btn" disabled=${selected.size === 0 || adding} onClick=${onAddSelected}>
-            ${adding ? "Adding…" : "📥 Add selected to wiki (raw/)"}
+            ${adding ? "Adding…" : html`<${IconDownload} size=${16} /> Add selected to wiki (raw/)`}
           </button>
           ${addResult && html`
             <div class="research-add-result">

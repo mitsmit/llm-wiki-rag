@@ -71,3 +71,6 @@ _Last updated: 2026-05-14 — 19 sources, 44 pages_
 - [Constitutional AI](wiki/sources/constitutional-ai.md) — Anthropic's principle-based alignment; origin of RLAIF
 - [TabPFN](wiki/sources/tabpfn.md) — tabular ICL foundation model, ≤1K samples
 - [TabICL](wiki/sources/tabicl.md) — tabular ICL scaled to 500K samples; outperforms CatBoost on large data
+
+## Brainstorms
+- [can an Ai agent understand and reason?](brainstorming_output/agi_discourse.md) — brainstorm filed 2026-06-13
