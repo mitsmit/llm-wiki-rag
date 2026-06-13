@@ -20,5 +20,8 @@ rag/eval/results/
 # Local Claude Code state
 .claude/
 
-# Unrelated side project
-research-agent/
+# research-agent: generated/local run state (source is tracked)
+research-agent/results/
+
+# exclude the design docuemnt from the repo
+DESIGN.md

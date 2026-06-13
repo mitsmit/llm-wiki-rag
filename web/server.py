@@ -16,7 +16,7 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 load_dotenv(VAULT_ROOT / ".env")
 
-from .routes import analyses, config, headlines, query, wiki  # noqa: E402
+from .routes import analyses, config, headlines, query, research, wiki  # noqa: E402
 
 
 @asynccontextmanager
@@ -42,6 +42,7 @@ app.include_router(wiki.router)
 app.include_router(query.router)
 app.include_router(analyses.router)
 app.include_router(config.router)
+app.include_router(research.router)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 

@@ -30,6 +30,7 @@ export function Sidebar({ route }) {
       <div class="sidebar-section">
         <a class="nav-item ${route.name === "headlines" ? "active" : ""}" href="#/">🏠 Headlines</a>
         <a class="nav-item ${route.name === "compare" ? "active" : ""}" href="#/compare">🔍↔🧪 Compare</a>
+        <a class="nav-item ${route.name === "research" ? "active" : ""}" href="#/research">🔭 Discover</a>
         ${pages && pages.overview && html`
           <a class="nav-item ${isPage(pages.overview) ? "active" : ""}" href="#/page/${pages.overview}">🗺️ Overview</a>
         `}
