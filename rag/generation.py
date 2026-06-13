@@ -6,6 +6,8 @@ app would produce for a user.
 
 from __future__ import annotations
 
+from typing import Iterator
+
 from .retrieve import RetrievedChunk
 from .tracing import get_openai_client, observe, update_current_span
 
@@ -60,3 +62,57 @@ def generate_answer(query: str, retrieved: list[RetrievedChunk], model: str) -> 
         input={"query": query, "retrieved_paths": [c.path for c in retrieved]},
     )
     return answer
+
+
+def stream_chat(
+    system_prompt: str,
+    user_prompt: str,
+    history: list[dict],
+    model: str,
+    client=None,
+) -> Iterator[str]:
+    """Stream a chat completion, yielding text deltas as they arrive.
+
+    `history` is a list of `{"role": ..., "content": ...}` messages; only
+    `assistant` turns are replayed (mirrors the Streamlit views' behavior of
+    feeding back prior answers without re-sending prior prompts/contexts).
+    """
+    if client is None:
+        client = get_openai_client()
+    stream = client.chat.completions.create(
+        model=model,
+        max_tokens=2048,
+        stream=True,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            *[{"role": m["role"], "content": m["content"]} for m in history if m["role"] == "assistant"],
+            {"role": "user", "content": user_prompt},
+        ],
+    )
+    for chunk in stream:
+        text = chunk.choices[0].delta.content or ""
+        if text:
+            yield text
+
+
+@observe(name="generate_answer_stream", capture_input=False)
+def stream_rag_answer(
+    query: str,
+    retrieved: list[RetrievedChunk],
+    history: list[dict],
+    model: str,
+) -> Iterator[str]:
+    """Streaming counterpart to `generate_answer`: yields text deltas, then
+    records the full answer on the current span once exhausted."""
+    context = build_rag_context(retrieved)
+    user_prompt = f"""RETRIEVED EXCERPTS:\n\n{context}\n\n---\n\nQUESTION: {query}"""
+
+    parts: list[str] = []
+    for delta in stream_chat(RAG_SYSTEM_PROMPT, user_prompt, history, model):
+        parts.append(delta)
+        yield delta
+
+    update_current_span(
+        input={"query": query, "retrieved_paths": [c.path for c in retrieved]},
+        output="".join(parts),
+    )

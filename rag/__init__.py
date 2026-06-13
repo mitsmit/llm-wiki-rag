@@ -2,8 +2,8 @@
 Local hybrid RAG module for the llm-wiki vault.
 
 Indexes markdown pages under wiki/ and source documents (markdown + PDF)
-under raw/, embeds them with the OpenAI embeddings API, and stores the
-result as a local numpy-backed vector index. Retrieval combines embedding
+under raw/, embeds them with a local sentence-transformers model, and stores
+the result as a local numpy-backed vector index. Retrieval combines embedding
 similarity with BM25 keyword search via reciprocal rank fusion.
 
 One-off usage:
@@ -35,7 +35,13 @@ cross-encoder:
     top = rerank(query, candidates, top_n=8)
 """
 
-from .generation import RAG_SYSTEM_PROMPT, build_rag_context, generate_answer
+from .generation import (
+    RAG_SYSTEM_PROMPT,
+    build_rag_context,
+    generate_answer,
+    stream_chat,
+    stream_rag_answer,
+)
 from .index import DEFAULT_INDEX_DIR, build_index
 from .rerank import rerank
 from .retrieve import RetrievedChunk, retrieve, retrieve_from_store
@@ -52,4 +58,6 @@ __all__ = [
     "RAG_SYSTEM_PROMPT",
     "build_rag_context",
     "generate_answer",
+    "stream_chat",
+    "stream_rag_answer",
 ]

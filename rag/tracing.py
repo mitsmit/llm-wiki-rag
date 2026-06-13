@@ -53,6 +53,14 @@ if TRACING_ENABLED:
     def flush() -> None:
         _client.flush()
 
+    def get_project_url() -> str | None:
+        """Return the Langfuse project's traces URL, or None if unavailable."""
+        try:
+            project_id = _client._get_project_id()
+        except Exception:
+            return None
+        return f"{_client._base_url}/project/{project_id}" if project_id else None
+
 else:
     def observe(func: Callable | None = None, **_kwargs: Any) -> Callable:
         """No-op stand-in for langfuse.observe. Supports both `@observe`
@@ -79,3 +87,6 @@ else:
 
     def flush() -> None:
         pass
+
+    def get_project_url() -> str | None:
+        return None
