@@ -42,6 +42,25 @@ export async function saveAnalysis(slug, question, answer) {
   return res.json();
 }
 
+export async function getResearchHistory() {
+  const res = await fetch("/api/research/history");
+  return res.json();
+}
+
+export async function getResearchResult(name) {
+  const res = await fetch(`/api/research/result/${encodeURIComponent(name)}`);
+  return res.json();
+}
+
+export async function selectResearchItems(items, query) {
+  const res = await fetch("/api/research/select", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items, query }),
+  });
+  return res.json();
+}
+
 export function getSessionId() {
   let id = localStorage.getItem("llm_wiki_session_id");
   if (!id) {

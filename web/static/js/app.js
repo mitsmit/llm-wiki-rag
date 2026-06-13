@@ -5,6 +5,7 @@ import { HeadlinesView } from "./components/HeadlinesView.js";
 import { ComparePanel } from "./components/ComparePanel.js";
 import { PageView } from "./components/PageView.js";
 import { LogView } from "./components/LogView.js";
+import { ResearchView } from "./components/ResearchView.js";
 
 const { useState, useEffect } = React;
 
@@ -12,6 +13,7 @@ function parseRoute(hash) {
   const path = hash.replace(/^#\/?/, "");
   if (path === "" || path === "/") return { name: "headlines" };
   if (path === "compare") return { name: "compare" };
+  if (path === "research") return { name: "research" };
   if (path === "log") return { name: "log" };
   if (path.startsWith("page/")) {
     return { name: "page", path: decodeURIComponent(path.slice("page/".length)) };
@@ -30,6 +32,7 @@ function App() {
 
   let main;
   if (route.name === "compare") main = html`<${ComparePanel} />`;
+  else if (route.name === "research") main = html`<${ResearchView} />`;
   else if (route.name === "page") main = html`<${PageView} path=${route.path} />`;
   else if (route.name === "log") main = html`<${LogView} />`;
   else main = html`<${HeadlinesView} />`;

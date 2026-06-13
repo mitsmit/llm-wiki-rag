@@ -1,0 +1,4 @@
+# Additional dependencies for research-agent/, on top of ../rag/requirements.txt
+# (openai, python-dotenv) which web/requirements.txt already pulls in.
+requests
+ddgs
