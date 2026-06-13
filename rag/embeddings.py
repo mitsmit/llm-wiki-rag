@@ -9,6 +9,8 @@ import numpy as np
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from .tracing import get_openai_client
+
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
@@ -20,7 +22,7 @@ _client: OpenAI | None = None
 def _get_client() -> OpenAI:
     global _client
     if _client is None:
-        _client = OpenAI()
+        _client = get_openai_client()
     return _client
 
 

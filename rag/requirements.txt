@@ -4,3 +4,4 @@ pypdf
 pyyaml
 python-dotenv
 sentence-transformers
+langfuse

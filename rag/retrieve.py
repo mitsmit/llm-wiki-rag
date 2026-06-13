@@ -12,6 +12,7 @@ from pathlib import Path
 from .embeddings import embed_query
 from .index import DEFAULT_INDEX_DIR
 from .store import VectorStore
+from .tracing import observe, update_current_span
 
 
 @dataclass
@@ -45,6 +46,7 @@ def _to_retrieved_chunks(results: list[tuple[dict, float]]) -> list[RetrievedChu
     ]
 
 
+@observe(name="retrieve", capture_input=False, capture_output=False)
 def retrieve_from_store(store: VectorStore, query: str, k: int = 5, fetch_k: int = 20) -> list[RetrievedChunk]:
     """Hybrid retrieval against an already-loaded VectorStore.
 
@@ -52,9 +54,15 @@ def retrieve_from_store(store: VectorStore, query: str, k: int = 5, fetch_k: int
     the index once and reuse it across many queries.
     """
     if not store.chunks:
+        update_current_span(input={"query": query, "k": k, "fetch_k": fetch_k}, output=[])
         return []
     query_vec = embed_query(query)
-    return _to_retrieved_chunks(store.hybrid_search(query, query_vec, k=k, fetch_k=fetch_k))
+    results = _to_retrieved_chunks(store.hybrid_search(query, query_vec, k=k, fetch_k=fetch_k))
+    update_current_span(
+        input={"query": query, "k": k, "fetch_k": fetch_k},
+        output=[{"path": c.path, "score": round(c.score, 4)} for c in results],
+    )
+    return results
 
 
 def retrieve(query: str, k: int = 5, index_dir: Path = DEFAULT_INDEX_DIR, fetch_k: int = 20) -> list[RetrievedChunk]:

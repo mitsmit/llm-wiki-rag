@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 
 from .bm25 import BM25Index
+from .tracing import observe, update_current_span
 
 EMBEDDINGS_FILE = "embeddings.npy"
 CHUNKS_FILE = "chunks.jsonl"
@@ -81,6 +82,7 @@ class VectorStore:
             self._bm25 = BM25Index([c["text"] for c in self.chunks])
         return self._bm25
 
+    @observe(name="hybrid_search", capture_input=False, capture_output=False)
     def hybrid_search(
         self, query: str, query_vec: np.ndarray, k: int = 5, fetch_k: int = 20
     ) -> list[tuple[dict, float]]:
@@ -99,4 +101,8 @@ class VectorStore:
             rrf_scores[idx] = rrf_scores.get(idx, 0.0) + 1.0 / (RRF_K + rank + 1)
 
         ranked = sorted(rrf_scores.items(), key=lambda kv: kv[1], reverse=True)[:k]
+        update_current_span(
+            input={"query": query, "k": k, "fetch_k": fetch_k},
+            output=[{"path": self.chunks[i]["path"], "rrf_score": round(score, 4)} for i, score in ranked],
+        )
         return [(self.chunks[i], score) for i, score in ranked]

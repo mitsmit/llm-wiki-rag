@@ -36,6 +36,7 @@ from .. import (
     rerank,
     retrieve_from_store,
 )
+from ..tracing import flush, observe, score_current, trace_attributes
 from . import thresholds
 
 EVAL_SET_PATH = Path(__file__).resolve().parent / "eval_set.jsonl"
@@ -136,16 +137,12 @@ def _aggregate(results: list[dict]) -> dict:
     return {key: sum(r[key] for r in results) / n for key in keys}
 
 
-def run_eval(model: str = DEFAULT_MODEL, judge_model: str = DEFAULT_JUDGE_MODEL) -> dict:
-    build_index()
-    store = VectorStore.load(DEFAULT_INDEX_DIR)
-    store.ensure_bm25()
-
-    items = _load_eval_set()
-    client = OpenAI()
-
-    results = []
-    for item in items:
+@observe(name="eval_item", capture_input=False, capture_output=False)
+def _run_eval_item(item: dict, store: VectorStore, client: OpenAI, model: str, judge_model: str) -> dict:
+    with trace_attributes(
+        tags=["eval"],
+        metadata={"eval_id": item["id"], "expected_sources": ", ".join(item["expected_sources"])},
+    ):
         candidates = retrieve_from_store(store, item["question"], k=RETRIEVE_K)
         retrieved = rerank(item["question"], candidates, top_n=RERANK_TOP_N)
         retrieved_paths = [c.path for c in retrieved]
@@ -156,7 +153,7 @@ def run_eval(model: str = DEFAULT_MODEL, judge_model: str = DEFAULT_JUDGE_MODEL)
         citation_validity, has_citations = _citation_validity(answer, set(retrieved_paths))
         judge = _judge(client, item["question"], retrieved, answer, judge_model)
 
-        results.append({
+        result = {
             "id": item["id"],
             "question": item["question"],
             "expected_sources": item["expected_sources"],
@@ -168,8 +165,27 @@ def run_eval(model: str = DEFAULT_MODEL, judge_model: str = DEFAULT_JUDGE_MODEL)
             "relevance": judge["relevance"],
             "judge_notes": judge["notes"],
             "answer": answer,
-        })
+        }
 
+        for k in HIT_KS:
+            score_current(name=f"hit@{k}", value=result[f"hit@{k}"])
+        score_current(name="mrr", value=result["mrr"])
+        score_current(name="citation_validity", value=result["citation_validity"])
+        score_current(name="groundedness", value=result["groundedness"])
+        score_current(name="relevance", value=result["relevance"])
+
+    return result
+
+
+def run_eval(model: str = DEFAULT_MODEL, judge_model: str = DEFAULT_JUDGE_MODEL) -> dict:
+    build_index()
+    store = VectorStore.load(DEFAULT_INDEX_DIR)
+    store.ensure_bm25()
+
+    items = _load_eval_set()
+    client = OpenAI()
+
+    results = [_run_eval_item(item, store, client, model, judge_model) for item in items]
     return {"items": results, "aggregates": _aggregate(results)}
 
 
@@ -220,6 +236,8 @@ def main():
     _write_summary_md(report, RESULTS_DIR / "summary.md")
 
     print((RESULTS_DIR / "summary.md").read_text(encoding="utf-8"))
+
+    flush()
 
     if args.strict:
         failures = _check_thresholds(report["aggregates"])

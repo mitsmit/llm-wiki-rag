@@ -12,6 +12,7 @@ from dataclasses import replace
 from sentence_transformers import CrossEncoder
 
 from .retrieve import RetrievedChunk
+from .tracing import observe, update_current_span
 
 DEFAULT_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
@@ -27,12 +28,14 @@ def _get_model(model_name: str = DEFAULT_MODEL) -> CrossEncoder:
     return _model
 
 
+@observe(name="rerank", capture_input=False, capture_output=False)
 def rerank(
     query: str, chunks: list[RetrievedChunk], top_n: int | None = None, model_name: str = DEFAULT_MODEL
 ) -> list[RetrievedChunk]:
     """Re-score `chunks` against `query` with a cross-encoder and return them
     sorted by `rerank_score` (descending), optionally truncated to `top_n`."""
     if not chunks:
+        update_current_span(input={"query": query, "candidates": 0, "top_n": top_n}, output=[])
         return []
 
     model = _get_model(model_name)
@@ -43,4 +46,9 @@ def rerank(
         key=lambda c: c.rerank_score,
         reverse=True,
     )
-    return reranked[:top_n] if top_n is not None else reranked
+    result = reranked[:top_n] if top_n is not None else reranked
+    update_current_span(
+        input={"query": query, "candidates": len(chunks), "top_n": top_n},
+        output=[{"path": c.path, "rerank_score": round(c.rerank_score, 4)} for c in result],
+    )
+    return result

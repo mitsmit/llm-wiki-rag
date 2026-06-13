@@ -6,9 +6,8 @@ app would produce for a user.
 
 from __future__ import annotations
 
-import openai
-
 from .retrieve import RetrievedChunk
+from .tracing import get_openai_client, observe, update_current_span
 
 RAG_SYSTEM_PROMPT = """\
 You are the RAG query agent for a personal LLM Wiki. You are given the most relevant excerpts \
@@ -41,12 +40,13 @@ def build_rag_context(chunks: list[RetrievedChunk]) -> str:
     return "\n".join(parts)
 
 
+@observe(name="generate_answer", capture_input=False)
 def generate_answer(query: str, retrieved: list[RetrievedChunk], model: str) -> str:
     """Run the RAG generation step (non-streaming) and return the full answer text."""
     context = build_rag_context(retrieved)
     user_prompt = f"""RETRIEVED EXCERPTS:\n\n{context}\n\n---\n\nQUESTION: {query}"""
 
-    client = openai.OpenAI()
+    client = get_openai_client()
     response = client.chat.completions.create(
         model=model,
         max_tokens=2048,
@@ -55,4 +55,8 @@ def generate_answer(query: str, retrieved: list[RetrievedChunk], model: str) -> 
             {"role": "user", "content": user_prompt},
         ],
     )
-    return response.choices[0].message.content or ""
+    answer = response.choices[0].message.content or ""
+    update_current_span(
+        input={"query": query, "retrieved_paths": [c.path for c in retrieved]},
+    )
+    return answer

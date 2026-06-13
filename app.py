@@ -1,8 +1,8 @@
 import streamlit as st
-import openai
 import os
 import re
 from pathlib import Path
+from uuid import uuid4
 from dotenv import load_dotenv
 
 from rag import (
@@ -14,6 +14,7 @@ from rag import (
     rerank,
     retrieve_from_store,
 )
+from rag.tracing import get_openai_client, observe, trace_attributes, update_current_span
 
 # Load .env from project root (works whether launched from root or a subdirectory)
 load_dotenv(Path(__file__).parent / ".env")
@@ -169,6 +170,38 @@ When answering a question:
 
 Be direct and precise. Do not pad answers."""
 
+@observe(name="wiki_query", capture_input=False, capture_output=False)
+def _run_query_pipeline(query: str, pages: dict, history: list[dict]) -> str:
+    session_id = st.session_state.setdefault("trace_session_id", str(uuid4()))
+    with trace_attributes(session_id=session_id, tags=["view:query"]):
+        context = build_context(pages)
+        user_prompt = f"""WIKI CONTENTS:\n\n{context}\n\n---\n\nQUESTION: {query}"""
+
+        client = get_openai_client()
+        response_placeholder = st.empty()
+        full_response = ""
+        stream = client.chat.completions.create(
+            model=MODEL,
+            max_tokens=2048,
+            stream=True,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                *[{"role": m["role"], "content": m["content"]}
+                  for m in history
+                  if m["role"] == "assistant"],
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        for chunk in stream:
+            text = chunk.choices[0].delta.content or ""
+            full_response += text
+            response_placeholder.markdown(full_response + "▌")
+        response_placeholder.markdown(full_response)
+
+    update_current_span(input={"query": query}, output=full_response)
+    return full_response
+
+
 def render_query_view(pages: dict):
     st.title("🔍 Query the Wiki")
     st.caption("Ask anything. The answer is synthesized from your wiki pages.")
@@ -190,32 +223,8 @@ def render_query_view(pages: dict):
     with st.chat_message("user"):
         st.markdown(query)
 
-    # Build prompt
-    context = build_context(pages)
-    user_prompt = f"""WIKI CONTENTS:\n\n{context}\n\n---\n\nQUESTION: {query}"""
-
-    # Stream response
-    client = openai.OpenAI()
     with st.chat_message("assistant"):
-        response_placeholder = st.empty()
-        full_response = ""
-        stream = client.chat.completions.create(
-            model=MODEL,
-            max_tokens=2048,
-            stream=True,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                *[{"role": m["role"], "content": m["content"]}
-                  for m in st.session_state.messages[:-1]
-                  if m["role"] == "assistant"],
-                {"role": "user", "content": user_prompt},
-            ],
-        )
-        for chunk in stream:
-            text = chunk.choices[0].delta.content or ""
-            full_response += text
-            response_placeholder.markdown(full_response + "▌")
-        response_placeholder.markdown(full_response)
+        full_response = _run_query_pipeline(query, pages, st.session_state.messages[:-1])
 
     st.session_state.messages.append({"role": "assistant", "content": full_response})
 
@@ -276,6 +285,51 @@ def _append_to_index(line: str, section: str):
 
 # ── RAG query view ────────────────────────────────────────────────────────────
 
+@observe(name="rag_query", capture_input=False, capture_output=False)
+def _run_rag_pipeline(query: str, store: VectorStore, history: list[dict]) -> str:
+    session_id = st.session_state.setdefault("trace_session_id", str(uuid4()))
+    with trace_attributes(session_id=session_id, tags=["view:rag"]):
+        # Retrieve a wider candidate pool (hybrid: embeddings + BM25), then
+        # cross-encoder rerank down to the final top-k for the prompt
+        candidates = retrieve_from_store(store, query, k=20)
+        retrieved = rerank(query, candidates, top_n=8)
+
+        if retrieved:
+            with st.expander(f"📎 {len(retrieved)} retrieved excerpts"):
+                for c in retrieved:
+                    st.markdown(
+                        f"- `{c.path}` — {c.title} "
+                        f"(rerank {c.rerank_score:.3f}, hybrid {c.score:.3f})"
+                    )
+
+        context = build_rag_context(retrieved)
+        user_prompt = f"""RETRIEVED EXCERPTS:\n\n{context}\n\n---\n\nQUESTION: {query}"""
+
+        client = get_openai_client()
+        response_placeholder = st.empty()
+        full_response = ""
+        stream = client.chat.completions.create(
+            model=MODEL,
+            max_tokens=2048,
+            stream=True,
+            messages=[
+                {"role": "system", "content": RAG_SYSTEM_PROMPT},
+                *[{"role": m["role"], "content": m["content"]}
+                  for m in history
+                  if m["role"] == "assistant"],
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        for chunk in stream:
+            text = chunk.choices[0].delta.content or ""
+            full_response += text
+            response_placeholder.markdown(full_response + "▌")
+        response_placeholder.markdown(full_response)
+
+    update_current_span(input={"query": query}, output=full_response)
+    return full_response
+
+
 def render_rag_query_view():
     st.title("🧪 RAG Query (hybrid retrieval)")
     st.caption("Ask anything. The answer is synthesized from the top retrieved excerpts (wiki/ + raw/) via embedding + BM25 hybrid search.")
@@ -297,44 +351,9 @@ def render_rag_query_view():
     with st.chat_message("user"):
         st.markdown(query)
 
-    # Retrieve a wider candidate pool (hybrid: embeddings + BM25), then
-    # cross-encoder rerank down to the final top-k for the prompt
     store = load_rag_store()
-    candidates = retrieve_from_store(store, query, k=20)
-    retrieved = rerank(query, candidates, top_n=8)
-    context = build_rag_context(retrieved)
-    user_prompt = f"""RETRIEVED EXCERPTS:\n\n{context}\n\n---\n\nQUESTION: {query}"""
-
-    # Stream response
-    client = openai.OpenAI()
     with st.chat_message("assistant"):
-        if retrieved:
-            with st.expander(f"📎 {len(retrieved)} retrieved excerpts"):
-                for c in retrieved:
-                    st.markdown(
-                        f"- `{c.path}` — {c.title} "
-                        f"(rerank {c.rerank_score:.3f}, hybrid {c.score:.3f})"
-                    )
-
-        response_placeholder = st.empty()
-        full_response = ""
-        stream = client.chat.completions.create(
-            model=MODEL,
-            max_tokens=2048,
-            stream=True,
-            messages=[
-                {"role": "system", "content": RAG_SYSTEM_PROMPT},
-                *[{"role": m["role"], "content": m["content"]}
-                  for m in st.session_state.rag_messages[:-1]
-                  if m["role"] == "assistant"],
-                {"role": "user", "content": user_prompt},
-            ],
-        )
-        for chunk in stream:
-            text = chunk.choices[0].delta.content or ""
-            full_response += text
-            response_placeholder.markdown(full_response + "▌")
-        response_placeholder.markdown(full_response)
+        full_response = _run_rag_pipeline(query, store, st.session_state.rag_messages[:-1])
 
     st.session_state.rag_messages.append({"role": "assistant", "content": full_response})
 
